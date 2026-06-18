@@ -123,7 +123,7 @@ from hospital_readmissions
 group by readmitted, readmission_flag;
 
 
--- see all age ranges in the dataset
+-- see all age ranges in the dataset 
 select age, count(*) as total_patients
 from hospital_readmissions
 group by age
@@ -177,7 +177,26 @@ from hospital_readmissions
 group by risk_category;
 
 
+
+
 -- group by analysis
 
 show columns from hospital_readmissions;
+
+-- gorup by age analysis
+select age, count(*) as total_patients
+from hospital_readmissions
+group by age
+order by age;
+
+-- readmitted analysis
+select readmitted, count(*) as total_patients
+from hospital_readmissions
+group by readmitted; 
+
+-- medical specialty analysis
+select medical_specialty, count(*) as total_patients
+from hospital_readmissions
+group by medical_specialty;
+
 
