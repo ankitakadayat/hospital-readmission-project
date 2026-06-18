@@ -171,9 +171,13 @@ case
     else 'high risk'
 end;
  
- -- showing risk category
-select age, count(*) as total_patients, n_inpatient, risk_category
+ -- showing patients by risk category
+select  risk_category, count(*) as total_patients
 from hospital_readmissions
-group by age, n_inpatient, risk_category
-order by age;
+group by risk_category;
+
+
+-- group by analysis
+
+show columns from hospital_readmissions;
 
