@@ -1,4 +1,3 @@
--- Ankita Kadayat SQl work
 -- Hospital Readmission project
 
 -- Create database
@@ -29,6 +28,15 @@ readmitted varchar(20)
 );
 
 
+SHOW VARIABLES LIKE "secure_file_priv";
+
+-- load csv data
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/hospital_readmissions.csv' 
+INTO TABLE hospital_readmissions 
+FIELDS TERMINATED BY ',' 
+LINES TERMINATED BY '\n' 
+IGNORE 1 LINES;
+ 
 show tables;
 
 -- display all records from hospital_readmissions table
@@ -48,8 +56,8 @@ SELECT COUNT(*) AS total_rows
 FROM hospital_readmissions;
 
 
--- count unique records
-SELECT COUNT(DISTINCT CONCAT_WS('|',
+-- show duplicate rows across all columns
+select 
  age,
  time_in_hospital,
  n_lab_procedures,
@@ -66,65 +74,106 @@ SELECT COUNT(DISTINCT CONCAT_WS('|',
  A1Ctest,
  `change`,
  diabetes_med,
+ readmitted,
+ count(*) as total_copies 
+FROM hospital_readmissions
+group by  
+age,
+ time_in_hospital,
+ n_lab_procedures,
+ n_procedures,
+ n_medications,
+ n_outpatient,
+ n_inpatient,
+ n_emergency,
+ medical_specialty,
+ diag_1,
+ diag_2,
+ diag_3,
+ glucose_test,
+ A1Ctest,
+ `change`,
+ diabetes_med,
  readmitted
-)) AS unique_rows
-FROM hospital_readmissions;
+ having count(*)>1;
+ 
+
+
 
 -- No duplicate records found.
 -- Total rows and unique rows are both 25,000.
 
 -- add readmission flag column
-ALTER TABLE hospital_readmissions
-ADD COLUMN readmission_flag INT;
 
--- convert readmitted yes/no into 1/0
--- disable safe update mode
-SET SQL_SAFE_UPDATES = 0;
+alter table hospital_readmissions
+add column readmission_flag int;
 
--- convert readmitted yes/no into 1/0
-UPDATE hospital_readmissions
-SET readmission_flag =
-CASE
-    WHEN readmitted = 'yes' THEN 1
-    WHEN readmitted = 'no' THEN 0
-END;
+-- CASE STATEMENT to convert yes/no to 1/0
+set sql_safe_updates=0;
+update hospital_readmissions
+set readmission_flag=
+case 
+	when readmitted='yes' then 1
+    when readmitted='no' then 0
+end;
 
 -- verify readmission flag values
-SELECT readmitted, readmission_flag, COUNT(*) AS total
-FROM hospital_readmissions
-GROUP BY readmitted, readmission_flag;
-
--- 11754 patients were readmitted and 13246 were not.
-
--- calculate overall readmission rate
-SELECT
-ROUND(
-SUM(readmission_flag) * 100.0 / COUNT(*),
-2
-) AS readmission_rate
-FROM hospital_readmissions;
+select readmitted, readmission_flag, count(*) as total
+from hospital_readmissions 
+group by readmitted, readmission_flag;
 
 
--- count patients in each age group
-SELECT
-    age,
-    COUNT(*) AS total_patients
-FROM hospital_readmissions
-GROUP BY age
-ORDER BY age;
+-- see all age ranges in the dataset
+select age, count(*) as total_patients
+from hospital_readmissions
+group by age
+order by age;
 
--- calculate readmission rate by age group
+-- add age_group column
+alter table hospital_readmissions
+add column afe_group varchar(20);
 
-SELECT
-    age,
-    COUNT(*) AS total_patients,
-    SUM(readmission_flag) AS readmitted_patients,
-    ROUND(
-        SUM(readmission_flag) * 100.0 / COUNT(*),
-        2
-    ) AS readmission_rate
-FROM hospital_readmissions
-GROUP BY age
-ORDER BY readmission_rate DESC;
+alter table hospital_readmissions
+rename column afe_group to age_group;
 
--- 
+-- update age_group values
+set sql_safe_updates=0;
+
+
+update hospital_readmissions
+set age_group=
+case
+    when age in('[40-50)', '[50-60)') then 'adult'
+    when age in('[60-70)', '[70-80)') then 'senior'
+    when age in('[80-90)', '[90-100)') then 'elderly'
+end;    
+    
+    
+select age, age_group, count(*) as total_patients
+from hospital_readmissions
+group by age, age_group
+order by age;
+
+
+-- adding column risk_category
+alter table hospital_readmissions
+add column risk_category varchar(20);
+
+-- update Risk_categroy values
+set sql_safe_updates=0;
+
+-- using case statement
+update hospital_readmissions
+set risk_category=
+case
+    when n_inpatient=0 then 'low risk'
+    when n_inpatient=1 then 'medium risk'
+    else 'high risk'
+end;
+ 
+ -- showing risk category
+select age, count(*) as total_patients, n_inpatient, risk_category
+from hospital_readmissions
+group by age, n_inpatient, risk_category
+order by age;
+
