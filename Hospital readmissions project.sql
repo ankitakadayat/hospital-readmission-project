@@ -180,11 +180,10 @@ group by risk_category;
 
 show columns from hospital_readmissions;
 
--- gorup by age analysis
-select age, count(*) as total_patients
+-- gorup by age group analysis
+select age_group, count(*) as total_patients
 from hospital_readmissions
-group by age
-order by age;
+group by age_group;
 
 -- readmitted analysis
 select readmitted, count(*) as total_patients
@@ -195,6 +194,13 @@ group by readmitted;
 select medical_specialty, count(*) as total_patients
 from hospital_readmissions
 group by medical_specialty;
+
+-- risk category analysis
+select risk_category, count(*) as total_patients
+from hospital_readmissions
+group by risk_category;
+
+  
 
 -- using CTE for risk_summary
 
@@ -213,9 +219,9 @@ from risk_summary;
  select age, age_group, count(*) as total_patients
  from hospital_readmissions
  group by age, age_group
- order by age
  )
- select * from age_summary;
+ select * from age_summary
+ order by age;
  
  -- using CTE for medical_specialty
  with specialty_summary as
@@ -231,11 +237,11 @@ from risk_summary;
 -- using cte for readmitted
 with readmitted_summary as
 (
-select readmitted, readmission_flag, count(*) as total_patients
+select readmitted, count(*) as total_patients
 from hospital_readmissions
-group by readmitted, readmission_flag
-order by total_patients
+group by readmitted
 )
-select * from readmitted_summary;
+select * from readmitted_summary
+order by total_patients;
     
     
