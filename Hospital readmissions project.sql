@@ -45,82 +45,62 @@ select * from hospital_readmissions;
 -- count total number of rows
 select count(*) from hospital_readmissions;
 
--- count missing values in medical_specialty column
-SELECT COUNT(*)
-FROM hospital_readmissions
-WHERE medical_specialty = 'Missing';
 
 
--- count total records
-SELECT COUNT(*) AS total_rows
+-- count missing values in all columns
+SELECT
+  SUM(CASE WHEN age IS NULL THEN 1 ELSE 0 END) AS age_nulls,
+  SUM(CASE WHEN time_in_hospital IS NULL THEN 1 ELSE 0 END) AS time_in_hospital_nulls,
+  SUM(CASE WHEN n_lab_procedures IS NULL THEN 1 ELSE 0 END) AS lab_procedures_nulls,
+  SUM(CASE WHEN n_procedures IS NULL THEN 1 ELSE 0 END) AS procedures_nulls,
+  SUM(CASE WHEN n_medications IS NULL THEN 1 ELSE 0 END) AS medications_nulls,
+  SUM(CASE WHEN n_outpatient IS NULL THEN 1 ELSE 0 END) AS outpatient_nulls,
+  SUM(CASE WHEN n_inpatient IS NULL THEN 1 ELSE 0 END) AS inpatient_nulls,
+  SUM(CASE WHEN n_emergency IS NULL THEN 1 ELSE 0 END) AS emergency_nulls,
+  SUM(CASE WHEN medical_specialty IS NULL THEN 1 ELSE 0 END) AS specialty_nulls,
+  SUM(CASE WHEN diag_1 IS NULL THEN 1 ELSE 0 END) AS diag1_nulls,
+  SUM(CASE WHEN diag_2 IS NULL THEN 1 ELSE 0 END) AS diag2_nulls,
+  SUM(CASE WHEN diag_3 IS NULL THEN 1 ELSE 0 END) AS diag3_nulls,
+  SUM(CASE WHEN glucose_test IS NULL THEN 1 ELSE 0 END) AS glucose_nulls,
+  SUM(CASE WHEN A1Ctest IS NULL THEN 1 ELSE 0 END) AS a1c_nulls,
+  SUM(CASE WHEN `change` IS NULL THEN 1 ELSE 0 END) AS change_nulls,
+  SUM(CASE WHEN diabetes_med IS NULL THEN 1 ELSE 0 END) AS diabetes_med_nulls,
+  SUM(CASE WHEN readmitted IS NULL THEN 1 ELSE 0 END) AS readmitted_nulls
 FROM hospital_readmissions;
 
 
--- show duplicate rows across all columns
-select 
- age,
- time_in_hospital,
- n_lab_procedures,
- n_procedures,
- n_medications,
- n_outpatient,
- n_inpatient,
- n_emergency,
- medical_specialty,
- diag_1,
- diag_2,
- diag_3,
- glucose_test,
- A1Ctest,
- `change`,
- diabetes_med,
- readmitted,
- count(*) as total_copies 
-FROM hospital_readmissions
-group by  
-age,
- time_in_hospital,
- n_lab_procedures,
- n_procedures,
- n_medications,
- n_outpatient,
- n_inpatient,
- n_emergency,
- medical_specialty,
- diag_1,
- diag_2,
- diag_3,
- glucose_test,
- A1Ctest,
- `change`,
- diabetes_med,
- readmitted
- having count(*)>1;
- 
+-- checking missing values in medical specialty
+select medical_specialty, count(*) as missing_count
+from hospital_readmissions
+where medical_specialty='missing'
+group by medical_specialty;
 
-
+-- missing values in medical specialty is 12382
 
 -- No duplicate records found.
--- Total rows and unique rows are both 25,000.
 
--- add readmission flag column
 
 alter table hospital_readmissions
 add column readmission_flag int;
 
--- CASE STATEMENT to convert yes/no to 1/0
-set sql_safe_updates=0;
-update hospital_readmissions
-set readmission_flag=
-case 
-	when readmitted='yes' then 1
-    when readmitted='no' then 0
-end;
+alter table hospital_readmissions
+drop column readmission_flag;
 
--- verify readmission flag values
-select readmitted, readmission_flag, count(*) as total
+-- CASE STATEMENT for counting readmitted patients
+SELECT
+  SUM(CASE WHEN readmitted='yes' THEN 1 ELSE 0 END) AS readmitted_count
+  from hospital_readmissions;
+  
+-- calculate readmission rate
+select
+round(
+sum(case when readmitted='yes' then 1 else 0 end)*100/count(*),2) as readmission_rate
+from hospital_readmissions;
+  
+-- verify readmission values
+select readmitted, count(*) as total
 from hospital_readmissions 
-group by readmitted, readmission_flag;
+group by readmitted;
 
 
 -- see all age ranges in the dataset 
@@ -149,15 +129,29 @@ case
 end;    
     
     
-select age, age_group, count(*) as total_patients
+select age_group, count(*) as total_patients
 from hospital_readmissions
-group by age, age_group
-order by age;
+group by age_group;
 
+-- readmission count based on age group
+select readmitted, age_group, count(*) as total
+from hospital_readmissions
+group by readmitted, age_group;
+
+
+-- readmission rate by age group
+
+select age_group, count(*) as total,
+sum(case when readmitted='yes' then 1 else 0 end) as readmitted_count,
+round(sum(case when readmitted='yes' then 1 else 0 end) * 100/count(*),2)
+as readmission_rate
+from hospital_readmissions
+group by age_group;
 
 -- adding column risk_category
 alter table hospital_readmissions
 add column risk_category varchar(20);
+
 
 -- update Risk_categroy values
 set sql_safe_updates=0;
@@ -171,8 +165,11 @@ case
     else 'high risk'
 end;
  
- -- showing patients by risk category
-select  risk_category, count(*) as total_patients
+ -- risk category vs readmission rate
+select risk_category, count(*) as total_patients,
+sum(case when readmitted='yes' then 1 else 0 end) as readmitted_count,
+round(sum(case when readmitted='yes' then 1 else 0 end)* 100/count(*),2)
+as readmisson_rate
 from hospital_readmissions
 group by risk_category;
 
@@ -199,4 +196,46 @@ select medical_specialty, count(*) as total_patients
 from hospital_readmissions
 group by medical_specialty;
 
+-- using CTE for risk_summary
 
+with risk_summary as
+(
+select risk_category, count(*) as total_patients
+from hospital_readmissions
+group by risk_category
+)
+select * 
+from risk_summary;
+ 
+ -- uing cte for age_summary
+ with age_summary as 
+ (
+ select age, age_group, count(*) as total_patients
+ from hospital_readmissions
+ group by age, age_group
+ order by age
+ )
+ select * from age_summary;
+ 
+ -- using CTE for medical_specialty
+ with specialty_summary as
+ (
+   select medical_specialty, count(*) as total_patients
+   from hospital_readmissions
+    group by medical_specialty
+ )
+ select * from specialty_summary
+ order by total_patients desc;
+ 
+ 
+-- using cte for readmitted
+with readmitted_summary as
+(
+select readmitted, readmission_flag, count(*) as total_patients
+from hospital_readmissions
+group by readmitted, readmission_flag
+order by total_patients
+)
+select * from readmitted_summary;
+    
+    
